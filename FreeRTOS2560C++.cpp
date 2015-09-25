@@ -214,7 +214,7 @@ void sonarLeft(void *p)
 	{
 		
 		readAndEnqueueSonarReading(SONAR_LEFT_ID,&srLeft,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
-		vTaskDelay(SONAR_READING_PERIOD_MS);
+		//vTaskDelay(SONAR_READING_PERIOD_MS);
 	}
 }
 
@@ -228,16 +228,15 @@ void vApplicationIdleHook()
 void accReading(void *p) {
 	while(1)
 	{
-		compass.readAcc();
+		compass.read();
 		accReadingData.name = 'a';
-		
-		snprintf(report, sizeof(report),"%d,%d,%d,",
-		compass.a.x,compass.a.y,compass.a.z);
+		int heading = compass.heading();
+		snprintf(report, sizeof(report),"%d,%d,%d,%d,",
+		heading,compass.a.x,compass.a.y,compass.a.z);
 		memcpy(accReadingData.data, report, 16);
 		xQueueOverwrite(acclerationQueue,&accReadingData);	
 		Serial.println(report);	
-		vTaskDelay(500);
-		//delay(100);
+		
 	}
 }
 
@@ -292,9 +291,9 @@ int main(void)
 {	
 	setup();
 	
-	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	//xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
+	xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 
