@@ -19,6 +19,7 @@
 #include "HardwareSerial.h"
 #include "LSM303.h"
 #include "LPS.h" 
+#include "L3G.h"
 
 //protocol
 #include "sprotapi.h"
@@ -107,15 +108,21 @@ LSM303 compass;
 LSM303::vector<int16_t> running_min = {32767, 32767, 32767}, running_max = {-32768, -32768, -32768};
 LSM303::vector<int16_t> a_running_min = {32767, 32767, 32767}, a_running_max = {-32768, -32768, -32768};
 
+char report[16];
+char compassReport[16];
+
 //barometer
 LPS barometer;
-		
-char report[16];
-char compassReport[16];	
 char baroReport[32];
 char pressureString[8];
 char altString[8];
 char tempString[8];
+
+//gyroscope
+L3G gyro;
+char gyroReport[16];
+
+
 void setup(void)
 {
 	// Arduino initialization for some common functions
@@ -131,6 +138,9 @@ void setup(void)
 		
 	barometer.init();
 	barometer.enableDefault();
+	
+	gyro.init();
+	gyro.enableDefault();
 	// Select the voltage source to be used as the ADC reference
 	analogReference(DEFAULT);
 	
@@ -267,6 +277,17 @@ void barometerReading(void *p){
 	}
 }
 
+void gyroReading(void *p){
+	while (1)
+	{
+		gyro.read();
+		snprintf(gyroReport, sizeof(gyroReport), "%d, %d, %d", 
+		gyro.g.x, gyro.g.y, gyro.g.z);
+		Serial.println(gyroReport);
+		vTaskDelay(500);
+	}
+}
+
 void compassReading(void *p) {
 	while(1)
 	{
@@ -319,8 +340,9 @@ int main(void)
 	setup();
 	
 	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
-	//xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	xTaskCreate(barometerReading, "brmt", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(barometerReading, "brmt", STACK_SIZE, NULL, TASK_PRIORITY +1, NULL);
+	xTaskCreate(gyroReading, "gyro", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
