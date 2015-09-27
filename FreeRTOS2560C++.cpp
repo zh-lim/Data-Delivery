@@ -17,7 +17,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include "HardwareSerial.h"
-#include "LSM303.h" 
+#include "LSM303.h"
+#include "LPS.h" 
 
 //protocol
 #include "sprotapi.h"
@@ -105,9 +106,16 @@ SensorReading accReadingData;
 LSM303 compass;
 LSM303::vector<int16_t> running_min = {32767, 32767, 32767}, running_max = {-32768, -32768, -32768};
 LSM303::vector<int16_t> a_running_min = {32767, 32767, 32767}, a_running_max = {-32768, -32768, -32768};
+
+//barometer
+LPS barometer;
 		
 char report[16];
 char compassReport[16];	
+char baroReport[32];
+char pressureString[8];
+char altString[8];
+char tempString[8];
 void setup(void)
 {
 	// Arduino initialization for some common functions
@@ -120,6 +128,9 @@ void setup(void)
  	compass.enableDefault();
  	compass.m_min = (LSM303::vector<int16_t>){-32767, -32767, -32767};
 	compass.m_max = (LSM303::vector<int16_t>){+32767, +32767, +32767};
+		
+	barometer.init();
+	barometer.enableDefault();
 	// Select the voltage source to be used as the ADC reference
 	analogReference(DEFAULT);
 	
@@ -152,6 +163,7 @@ void setup(void)
 	compassQueue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
 	SEMA_SONAR = xSemaphoreCreateBinary();
 	xSemaphoreGive(SEMA_SONAR);
+	
 }
 
 void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonarADCChannel, uint8_t sonarEnablePin)
@@ -240,6 +252,21 @@ void accReading(void *p) {
 	}
 }
 
+void barometerReading(void *p){
+	while(1){
+		float pressure = barometer.readPressureMillibars();
+		float altitude = barometer.pressureToAltitudeMeters(pressure);
+		float temperature = barometer.readTemperatureC();
+		
+		dtostrf(pressure, 2, 2, pressureString);
+		dtostrf(altitude, 2, 2, altString);
+		dtostrf(temperature, 2, 2, tempString);
+		snprintf(baroReport, sizeof(baroReport),"p: %s a: %s t: %s",
+		pressureString, altString, tempString);
+		Serial.println(baroReport);	
+	}
+}
+
 void compassReading(void *p) {
 	while(1)
 	{
@@ -292,9 +319,10 @@ int main(void)
 	setup();
 	
 	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
-	xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(barometerReading, "brmt", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 
 	vTaskStartScheduler();
