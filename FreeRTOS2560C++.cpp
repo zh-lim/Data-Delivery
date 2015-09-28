@@ -35,6 +35,8 @@
 #define SONAR_READING_PERIOD_MS		1000 / SONAR_READING_FREQUENCY
 #define SONAR_WAIT_PERIOD_MS		10
 
+#define MOTOR_PIN					49
+
 #define RPI_SERIAL_PORT_BAUDRATE		115200
 
 // ADC-Parameters
@@ -44,8 +46,8 @@
 #define DISTANCE_SCALE_FACTOR		13
 
 // ADC channel to Sonar Mappings
-#define SONAR_LEFT_TRIGGER			50
-#define SONAR_LEFT_ECHO				51
+#define SONAR_LEFT_TRIGGER			30
+#define SONAR_LEFT_ECHO				31
 #define SONAR_LEFT_ADC_CHANNEL		A0
 #define SONAR_RIGHT_ADC_CHANNEL		A7
 #define SONAR3_ADC_CHANNEL			A13
@@ -108,8 +110,9 @@ SensorReading accReadingData;
 SensorReading baroReadingData;
 SensorReading gyroReadingData;
 
-// array to store temproray data
+// array to store temporary data for sonar
 int sonardata [10];
+int count = 0;
 
 //accelerometer
 LSM303 compass;
@@ -168,6 +171,9 @@ void setup(void)
 	// Make all sonar enable lines low to disable all sonars
 	digitalWrite(SONAR_LEFT_TRIGGER, LOW);
 	
+	// motor pin output
+	pinMode(MOTOR_PIN, OUTPUT);
+	
 	SPROTInit(115200.0);
 	
 	// Create a queue for each sonar
@@ -188,6 +194,7 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 {
 
 	int sonarReading;
+	int distance;
 	//// Maintain exclusivity of sonar enable lines - only 1 sonar at a time may be active
 	xSemaphoreTake(SEMA_SONAR, portMAX_DELAY);
 	digitalWrite(SONAR_LEFT_TRIGGER, HIGH);
@@ -196,14 +203,23 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 	// Read sonar from corresponding ADC channel, perform value adjustments as needed
 	//delayMicroseconds(10);
 	digitalWrite(SONAR_LEFT_TRIGGER, LOW);
-	sonarReading = pulseIn(SONAR_LEFT_ECHO, HIGH);                              
+	sonarReading = pulseIn(SONAR_LEFT_ECHO, HIGH);
+	if(count < 9){
+		sonardata[count] = sonarReading;
+		count++;
+	}else if(count == 9){
+		count = 0;
+		distance = (sonarFilter(sonardata)/2910);
+		if(distance < 5.0)
+			digitalWrite(MOTOR_PIN, HIGH);
+	}                           
 	//sonarReading = (analogRead(sonarADCChannel) * DISTANCE_SCALE_FACTOR) / 10;
 	xSemaphoreGive(SEMA_SONAR);
 	sr->name = 's';
 	convertToDecimalString((char *)sr->data, sonarReading);
-	Serial.println(sr->data);
+	//Serial.println(sr->data);
 	// Enqueue sonar reading for transmission over serial line
-	xQueueOverwrite(ARR_SONAR_QUEUE[0], sr);
+	//xQueueOverwrite(ARR_SONAR_QUEUE[0], sr);
 }
 
 void serialDespatcher(void * args)
