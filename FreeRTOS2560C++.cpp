@@ -210,8 +210,10 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 	}else if(count == 9){
 		count = 0;
 		distance = (sonarFilter(sonardata)/2910);
-		if(distance < 5.0)
+		if(distance < 1.0)
 			digitalWrite(MOTOR_PIN, HIGH);
+		else
+			digitalWrite(MOTOR_PIN, LOW);
 	}                           
 	//sonarReading = (analogRead(sonarADCChannel) * DISTANCE_SCALE_FACTOR) / 10;
 	xSemaphoreGive(SEMA_SONAR);
@@ -288,9 +290,9 @@ void accReading(void *p) {
 
 void barometerReading(void *p){
 	while(1){
-		//float pressure = barometer.readPressureMillibars();
+		float pressure = barometer.readPressureMillibars();
 		float altitude = barometer.pressureToAltitudeMeters(pressure);
-		//float temperature = barometer.readTemperatureC();
+		float temperature = barometer.readTemperatureC();
 		
 		//dtostrf(pressure, 2, 2, pressureString);
 		dtostrf(altitude, 2, 2, altString);
@@ -342,7 +344,7 @@ void IMUreading(void *p)
 		int altitude = barometer.pressureToAltitudeMeters(barometer.readPressureMillibars());
 		snprintf(report, sizeof(report),"%d,%d,%d,%d,%d,%d,%d,%d,",
 		heading,compass.a.x,compass.a.y,compass.a.z,altitude,gyro.g.x,gyro.g.y,gyro.g.z);
-		memcpy(IMUData.data, report, 16);
+		memcpy(IMUdata.data, report, 16);
 		//memcpy(accReadingData.data, report, 16);
 		xQueueOverwrite(acclerationQueue,&accReadingData);
 	}
@@ -381,10 +383,10 @@ int main(void)
 {	
 	setup();
 	
-	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
+	xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	//xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	xTaskCreate(IMUreading, "imur", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(IMUreading, "imur", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 
 // readings from the IMU will be executed in 1 task 
 	//xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);

@@ -46,7 +46,7 @@ int sonarFilter(int Arr[])
 	for(i=0; i<size; i++){
 		sum += Arr[i];
 	}
-	for(i=0; i<szie; i++){
+	for(i=0; i<size; i++){
 		int diff = Arr[i] - (sum/size);
 		if(diff > 200 || diff < -200){
 			sum-=Arr[i];
