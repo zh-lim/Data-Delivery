@@ -87,8 +87,11 @@ SemaphoreHandle_t SEMA_COMPASS;
 
 // Queue for containing sonar readings
 QueueHandle_t ARR_SONAR_QUEUE[SONAR_COUNT];
+QueueHandle_t IMUQueue;
 QueueHandle_t compassQueue;
 QueueHandle_t acclerationQueue;
+QueueHandle_t barometerQueue;
+QueueHandle_t gyroscopeQueue;
 
 // Stores the last read value from each sonar
 volatile int ARR_SONAR_SAMPLES[SONAR_COUNT][AVG_FILTER_SAMPLE_SIZE] = {{0},{0}};
@@ -99,9 +102,14 @@ char itemBuffer1[DEFAULT_BUFFER_SIZE] = {0};
 char itemBuffer2[DEFAULT_BUFFER_SIZE] = {0};
 char itemBuffer3[DEFAULT_BUFFER_SIZE] = {0};
 SensorReading srLeft;
+SensorReading IMUdata;
 SensorReading compassReadingData;
 SensorReading accReadingData;
+SensorReading baroReadingData;
+SensorReading gyroReadingData;
 
+// array to store temproray data
+int sonardata [10];
 
 //accelerometer
 LSM303 compass;
@@ -264,16 +272,16 @@ void accReading(void *p) {
 
 void barometerReading(void *p){
 	while(1){
-		float pressure = barometer.readPressureMillibars();
+		//float pressure = barometer.readPressureMillibars();
 		float altitude = barometer.pressureToAltitudeMeters(pressure);
-		float temperature = barometer.readTemperatureC();
+		//float temperature = barometer.readTemperatureC();
 		
-		dtostrf(pressure, 2, 2, pressureString);
+		//dtostrf(pressure, 2, 2, pressureString);
 		dtostrf(altitude, 2, 2, altString);
-		dtostrf(temperature, 2, 2, tempString);
-		snprintf(baroReport, sizeof(baroReport),"p: %s a: %s t: %s",
-		pressureString, altString, tempString);
-		Serial.println(baroReport);	
+		//dtostrf(temperature, 2, 2, tempString);
+		snprintf(baroReport, sizeof(baroReport),"a: %s",
+		altString);
+		//Serial.println(baroReport);	
 	}
 }
 
@@ -283,7 +291,7 @@ void gyroReading(void *p){
 		gyro.read();
 		snprintf(gyroReport, sizeof(gyroReport), "%d, %d, %d", 
 		gyro.g.x, gyro.g.y, gyro.g.z);
-		Serial.println(gyroReport);
+		//Serial.println(gyroReport);
 		vTaskDelay(500);
 	}
 }
@@ -303,6 +311,24 @@ void compassReading(void *p) {
 		//Serial.println(compassReport);
 		//delay(10);
 		vTaskDelay(10);
+	}
+}
+
+void IMUreading(void *p)
+{
+	while(1)
+	{
+		// accelerator reading
+		compass.read();
+		gyro.read();
+		accReadingData.name = 'a';
+		int heading = compass.heading();
+		int altitude = barometer.pressureToAltitudeMeters(barometer.readPressureMillibars());
+		snprintf(report, sizeof(report),"%d,%d,%d,%d,%d,%d,%d,%d,",
+		heading,compass.a.x,compass.a.y,compass.a.z,altitude,gyro.g.x,gyro.g.y,gyro.g.z);
+		memcpy(IMUData.data, report, 16);
+		//memcpy(accReadingData.data, report, 16);
+		xQueueOverwrite(acclerationQueue,&accReadingData);
 	}
 }
 
@@ -340,12 +366,15 @@ int main(void)
 	setup();
 	
 	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
-	xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	xTaskCreate(barometerReading, "brmt", STACK_SIZE, NULL, TASK_PRIORITY +1, NULL);
-	xTaskCreate(gyroReading, "gyro", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	//xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(IMUreading, "imur", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+
+// readings from the IMU will be executed in 1 task 
+	//xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(barometerReading, "brmt", STACK_SIZE, NULL, TASK_PRIORITY +1, NULL);
+	//xTaskCreate(gyroReading, "gyro", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	//xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 
 	vTaskStartScheduler();
 	return 0;
