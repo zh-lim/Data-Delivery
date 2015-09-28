@@ -53,5 +53,8 @@ int sonarFilter(int Arr[])
 			count--;
 		}
 	}
-	return sum/count;
+	if(count != 0)
+		return sum/count;
+	else if(count == 0)
+		return Arr[0];
 }

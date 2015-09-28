@@ -35,7 +35,7 @@
 #define SONAR_READING_PERIOD_MS		1000 / SONAR_READING_FREQUENCY
 #define SONAR_WAIT_PERIOD_MS		10
 
-#define MOTOR_PIN					49
+#define MOTOR_PIN					9
 
 #define RPI_SERIAL_PORT_BAUDRATE		115200
 
@@ -209,11 +209,16 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		count++;
 	}else if(count == 9){
 		count = 0;
-		distance = (sonarFilter(sonardata)/2910);
-		if(distance < 1.0)
+		distance = (sonarFilter(sonardata)/29.1);
+		Serial.println(distance);
+		if(distance < 50)
+			//analogWrite(MOTOR_PIN, 255);
 			digitalWrite(MOTOR_PIN, HIGH);
+		//else if(distance < 1.0)
+			//analogWrite(MOTOR_PIN, 255);
 		else
 			digitalWrite(MOTOR_PIN, LOW);
+			//analogWrite(MOTOR_PIN, 0);
 	}                           
 	//sonarReading = (analogRead(sonarADCChannel) * DISTANCE_SCALE_FACTOR) / 10;
 	xSemaphoreGive(SEMA_SONAR);
