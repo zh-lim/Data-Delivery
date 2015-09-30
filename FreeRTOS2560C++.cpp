@@ -193,8 +193,8 @@ void setup(void)
 void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonarADCChannel, uint8_t sonarEnablePin)
 {
 
-	int sonarReading;
-	int distance;
+	unsigned int sonarReading;
+	unsigned int distance;
 	//// Maintain exclusivity of sonar enable lines - only 1 sonar at a time may be active
 	xSemaphoreTake(SEMA_SONAR, portMAX_DELAY);
 	digitalWrite(SONAR_LEFT_TRIGGER, HIGH);
@@ -209,9 +209,10 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		count++;
 	}else if(count == 9){
 		count = 0;
-		distance = (sonarFilter(sonardata)/29.1);
+		distance = (sonarFilter(sonardata)/58.2); // distance from obstacle in cm
 		Serial.println(distance);
-		if(distance < 50)
+		Serial.println(" cm");
+		if(distance < 100)
 			//analogWrite(MOTOR_PIN, 255);
 			digitalWrite(MOTOR_PIN, HIGH);
 		//else if(distance < 1.0)
@@ -284,11 +285,10 @@ void accReading(void *p) {
 		compass.read();
 		accReadingData.name = 'a';
 		int heading = compass.heading();
-		snprintf(report, sizeof(report),"%d,%d,%d,%d,",
-		heading,compass.a.x,compass.a.y,compass.a.z);
+		snprintf(report, sizeof(report),"%d,%d,%d,%d,",heading,compass.a.x,compass.a.y,compass.a.z);
 		memcpy(accReadingData.data, report, 16);
 		xQueueOverwrite(acclerationQueue,&accReadingData);	
-		Serial.println(report);	
+		//Serial.println(heading);	
 		
 	}
 }
@@ -331,7 +331,7 @@ void compassReading(void *p) {
 		compass.m.x);
 		memcpy(compassReadingData.data, compassReport, 16);
 		xQueueOverwrite(compassQueue,&compassReadingData);	
-		//Serial.println(compassReport);
+		Serial.println(compassReport);
 		//delay(10);
 		vTaskDelay(10);
 	}
@@ -346,10 +346,13 @@ void IMUreading(void *p)
 		gyro.read();
 		accReadingData.name = 'a';
 		int heading = compass.heading();
-		int altitude = barometer.pressureToAltitudeMeters(barometer.readPressureMillibars());
-		snprintf(report, sizeof(report),"%d,%d,%d,%d,%d,%d,%d,%d,",
-		heading,compass.a.x,compass.a.y,compass.a.z,altitude,gyro.g.x,gyro.g.y,gyro.g.z);
+		float altitude = barometer.pressureToAltitudeMeters(barometer.readPressureMillibars());
+		Serial.println("heading");
+		dtostrf(altitude, 2, 2, altString);
+		snprintf(report, sizeof(report),"%d,%d,%d,%d,%s,%d,%d,%d,",
+		heading,compass.a.x,compass.a.y,compass.a.z,altString,gyro.g.x,gyro.g.y,gyro.g.z);
 		memcpy(IMUdata.data, report, 16);
+		Serial.println(report);
 		//memcpy(accReadingData.data, report, 16);
 		xQueueOverwrite(acclerationQueue,&accReadingData);
 	}
@@ -388,10 +391,10 @@ int main(void)
 {	
 	setup();
 	
-	xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
-	//xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	//xTaskCreate(IMUreading, "imur", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+	xTaskCreate(IMUreading, "imur", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 
 // readings from the IMU will be executed in 1 task 
 	//xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
