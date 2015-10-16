@@ -124,7 +124,7 @@ volatile int ARR_SONAR_READ_COUNT[SONAR_COUNT] = {0};
 // Temporary buffers for serial despatcher
 char itemBuffer1[DEFAULT_BUFFER_SIZE] = {0};
 char itemBuffer2[DEFAULT_BUFFER_SIZE] = {0};
-char itemBuffer3[DEFAULT_BUFFER_SIZE] = {0};
+char itemBuffer3[18] = {0};
 SensorReading srLeft;
 SensorReading srRight;
 SensorReading srChest;
@@ -139,7 +139,7 @@ LSM303 compass;
 LSM303::vector<int16_t> running_min = {32767, 32767, 32767}, running_max = {-32768, -32768, -32768};
 LSM303::vector<int16_t> a_running_min = {32767, 32767, 32767}, a_running_max = {-32768, -32768, -32768};
 
-char report[16];
+char report[16] = {0};
 char compassReport[16];
 
 //barometer
@@ -329,11 +329,14 @@ void serialDespatcher(void * args)
 		//Send compass data
 		if(xQueueReceive(acclerationQueue, itemBuffer3, 0) == pdTRUE)
 		{
+		
 			
 			SPROTSend((byte_t *)itemBuffer3, 0, QUEUE_ITEM_SIZE, SPROT_SEND_TIMEOUT);
-			//Serial.println(itemBuffer1);
+			//Serial.println(itemBuffer3);
 		}
 	}
+	
+	//vTaskDelay(100);
 }
 
 void sonarLeft(void *p)
@@ -402,16 +405,21 @@ void accReading(void *p) {
 	while(1)
 	{
 	
+		
 		compass.read();
 		accReadingData.name = 'a';
 		int heading = compass.heading();
 		snprintf(report, sizeof(report),"%d,%d,%d,%d,",
 		heading,compass.a.x,compass.a.y,compass.a.z);
+		//snprintf(report, sizeof(report),"%d,%d,%d,%d,",
+		//300,1,0,0);
 		memcpy(accReadingData.data, report, 16);
-		xQueueOverwrite(acclerationQueue,&accReadingData);	
-		//Serial.println(report);	
+		xQueueReset(acclerationQueue);
+		xQueueOverwrite(acclerationQueue,&accReadingData);
+		//Serial.println(report);
 		
 	}
+	
 }
 
 void barometerReading(void *p){
@@ -493,7 +501,7 @@ int main(void)
 	
 	xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	xTaskCreate(sonarRight, "snrgt", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
-	xTaskCreate(sonarChest, "sncst", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
+	 xTaskCreate(sonarChest, "sncst", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	//xTaskCreate(sonarCalfTop, "sncalftop", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	//xTaskCreate(sonarCalfBtm, "sncalfbtm", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	xTaskCreate(accReading, "accrd", STACK_SIZE, NULL, TASK_PRIORITY +1, NULL);
