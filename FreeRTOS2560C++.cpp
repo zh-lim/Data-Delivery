@@ -58,7 +58,7 @@
 // Motor Pin
 #define MOTOR_PIN_RIGHT				8
 #define MOTOR_PIN_LEFT				9
-#define MOTOR_PIN_GLOVE				6
+#define MOTOR_PIN_GLOVE				7
 
 // Task parameters
 #define STACK_SIZE					150
