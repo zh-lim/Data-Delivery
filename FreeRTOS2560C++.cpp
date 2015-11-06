@@ -68,16 +68,16 @@
 #define SONAR_RIGHT_ECHO			33
 
 // Sonar Chest pins
-#define SONAR_CHEST_TRIGGER			30
-#define SONAR_CHEST_ECHO			31
+#define SONAR_CHEST_TRIGGER			50
+#define SONAR_CHEST_ECHO			51
 
 //Sonar  pins
-#define SONAR_CALF_TOP_TRIGGER		36
-#define SONAR_CALF_TOP_ECHO			37
+//#define SONAR_CALF_TOP_TRIGGER		36
+//#define SONAR_CALF_TOP_ECHO			37
 
 // Sonar Chest pins
-#define SONAR_CALF_BOTTOM_TRIGGER	38
-#define SONAR_CALF_BOTTOM_ECHO		39
+//#define SONAR_CALF_BOTTOM_TRIGGER	38
+//#define SONAR_CALF_BOTTOM_ECHO		39
 
 // Sonar glove pins
 #define SONAR_GLOVE_TRIGGER			48
@@ -133,8 +133,9 @@ char itemBuffer3[18] = {0};
 SensorReading srLeft;
 SensorReading srRight;
 SensorReading srChest;
-SensorReading srCalfTop;
-SensorReading srCalfBtm;
+SensorReading srGlove;
+//SensorReading srCalfTop;
+//SensorReading srCalfBtm;
 SensorReading compassReadingData;
 SensorReading accReadingData;
 
@@ -170,6 +171,7 @@ unsigned long distance;
 
 int gloveCount = 0;
 int rightCount = 0;
+int leftCount = 0;
 void setup(void)
 {
 	// Arduino initialization for some common functions
@@ -196,19 +198,20 @@ void setup(void)
 	pinMode(SONAR_RIGHT_ECHO, INPUT);
 	pinMode(SONAR_CHEST_ECHO, INPUT);
 	pinMode(SONAR_GLOVE_ECHO, INPUT);
-	pinMode(SONAR_CALF_TOP_ECHO, INPUT);
-	pinMode(SONAR_CALF_BOTTOM_ECHO, INPUT);
+	//pinMode(SONAR_CALF_TOP_ECHO, INPUT);
+	//pinMode(SONAR_CALF_BOTTOM_ECHO, INPUT);
 
 	
 	pinMode(SONAR_LEFT_ADC_CHANNEL, INPUT);
 	pinMode(SONAR_RIGHT_ADC_CHANNEL, INPUT);
 	pinMode(SONAR3_ADC_CHANNEL, INPUT);
+	
 	pinMode(SONAR_LEFT_TRIGGER, OUTPUT);
 	pinMode(SONAR_RIGHT_TRIGGER, OUTPUT);
 	pinMode(SONAR_CHEST_TRIGGER, OUTPUT);
 	pinMode(SONAR_GLOVE_TRIGGER, OUTPUT);
-	pinMode(SONAR_CALF_TOP_TRIGGER, OUTPUT);
-	pinMode(SONAR_CALF_BOTTOM_TRIGGER, OUTPUT);
+	//pinMode(SONAR_CALF_TOP_TRIGGER, OUTPUT);
+	//pinMode(SONAR_CALF_BOTTOM_TRIGGER, OUTPUT);
 		
 	
 	// Set sonar enable pins to output
@@ -235,8 +238,8 @@ void setup(void)
 	digitalWrite(SONAR_RIGHT_TRIGGER, LOW);
 	digitalWrite(SONAR_CHEST_TRIGGER, LOW);
 	digitalWrite(SONAR_GLOVE_TRIGGER, LOW);
-	digitalWrite(SONAR_CALF_TOP_TRIGGER, LOW);
-	digitalWrite(SONAR_CALF_BOTTOM_TRIGGER, LOW);
+	//digitalWrite(SONAR_CALF_TOP_TRIGGER, LOW);
+	//digitalWrite(SONAR_CALF_BOTTOM_TRIGGER, LOW);
 	SPROTInit(115200.0);
 	
 	// Create a queue for each sonar
@@ -253,7 +256,7 @@ void setup(void)
 	
 }
 
-void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonarADCChannel, uint8_t sonarEnablePin)
+void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr)//,uint8_t sonarADCChannel, uint8_t sonarEnablePin)
 {
 
 	
@@ -276,16 +279,29 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		
 		//Serial.println("Left Sonar Reading:");
 		sr->name = 's';
-		convertToDecimalString((char *)sr->data, sonarReading2);
+		//convertToDecimalString((char *)sr->data, sonarReading2);
 		distance2 = sonarReading2/58; // converts sonar reading to centimeters
 		//
-		//Serial.println("LEFT:");
-		//Serial.println(distance2);
-
-		if(distance2 < 80){
+		Serial.println("LEFT:");
+		Serial.println(distance2);
+		
+		if(distance2 <=70 && distance2 > 0)
+		{
+			leftCount++;
+		}
+		else if(distance2 > 70)
+		{
+			leftCount= 0;
+		}
+		
+		if(leftCount > 25)
+		{
 			digitalWrite(MOTOR_PIN_LEFT, HIGH);
-		}else
-		digitalWrite(MOTOR_PIN_LEFT, LOW);
+		}
+		else
+		{
+			digitalWrite(MOTOR_PIN_LEFT, LOW);
+		}
 		xTaskResumeAll ();
 	}
 	
@@ -301,7 +317,8 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		sr->name = 's';
 		convertToDecimalString((char *)sr->data, sonarReading1);
 		distance1 = sonarReading1/58; // converts sonar reading to centimeters
-					
+		Serial.println("RIGHT:");
+		Serial.println(distance1);
 		if(distance1 <=70 && distance1 > 0)
 		{
 			rightCount++;
@@ -311,17 +328,18 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 			rightCount= 0;
 		}
 		
-		if(rightCount > 15)
+		if(rightCount > 25)
 		{
-			digitalWrite(MOTOR_PIN_RIGHT, HIGH);			
+			digitalWrite(MOTOR_PIN_RIGHT, HIGH);
 		}
 		else
 		{
 			digitalWrite(MOTOR_PIN_RIGHT, LOW);
 		}
 		xTaskResumeAll();
-		}
-		else if(sonarId == 2){
+	}
+	
+	else if(sonarId == 2){
 		vTaskSuspendAll ();
 		lastTickValue1 = xTaskGetTickCount();
 		digitalWrite(SONAR_CHEST_TRIGGER, HIGH);
@@ -331,14 +349,13 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		
 		//Serial.println("Chest Sonar Reading:");
 		sr->name = 's';
-		convertToDecimalString((char *)sr->data, sonarReading/58);
+		//convertToDecimalString((char *)sr->data, sonarReading/58);
 		distance = sonarReading/58; // converts sonar reading to centimeters
-		//Serial.println(sr->data);
-		//Serial.println("MIDDLE:");
-		//Serial.println(distance);
+		Serial.println("MIDDLE:");
+		Serial.println(distance);
 		if(distance < 80){
 			digitalWrite(MOTOR_PIN, HIGH);
-	
+			
 		}else
 		digitalWrite(MOTOR_PIN, LOW);
 		xTaskResumeAll ();
@@ -349,7 +366,7 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		digitalWrite(SONAR_GLOVE_TRIGGER, HIGH);
 		vTaskDelayUntil(&lastTickValue3, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
 		digitalWrite(SONAR_GLOVE_TRIGGER, LOW);
-		sonarReading3 = pulseIn(SONAR_GLOVE_ECHO, HIGH,10000);
+		sonarReading3 = pulseIn(SONAR_GLOVE_ECHO, HIGH,5000);
 		distance3 = sonarReading3/58; // converts sonar reading to centimeters
 		//Serial.println(sr->data);
 		
@@ -377,24 +394,24 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr,uint8_t sonar
 		//digitalWrite(MOTOR_PIN_GLOVE, LOW);
 		xTaskResumeAll ();
 	}
-	else if(sonarId == 4){
-		digitalWrite(SONAR_CALF_TOP_TRIGGER, HIGH);
-		vTaskDelayUntil(&lastTickValue, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
-		digitalWrite(SONAR_CALF_TOP_TRIGGER, LOW);
-		sonarReading = pulseIn(SONAR_CALF_TOP_ECHO, HIGH);
-		//Serial.println("Calf top Sonar Reading:");
-		sr->name = 's';
-		convertToDecimalString((char *)sr->data, sonarReading);
-	}
-	else if(sonarId == 5){
-		digitalWrite(SONAR_CALF_BOTTOM_TRIGGER, HIGH);
-		vTaskDelayUntil(&lastTickValue, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
-		digitalWrite(SONAR_CALF_BOTTOM_TRIGGER, LOW);
-		sonarReading = pulseIn(SONAR_CALF_BOTTOM_ECHO, HIGH);
-		//Serial.println("Calf bottom Sonar Reading:");
-		sr->name = 's';
-		convertToDecimalString((char *)sr->data, sonarReading);
-	}
+	//else if(sonarId == 4){
+		//digitalWrite(SONAR_CALF_TOP_TRIGGER, HIGH);
+		//vTaskDelayUntil(&lastTickValue, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
+		//digitalWrite(SONAR_CALF_TOP_TRIGGER, LOW);
+		//sonarReading = pulseIn(SONAR_CALF_TOP_ECHO, HIGH);
+		////Serial.println("Calf top Sonar Reading:");
+		//sr->name = 's';
+		//convertToDecimalString((char *)sr->data, sonarReading);
+	//}
+	//else if(sonarId == 5){
+		//digitalWrite(SONAR_CALF_BOTTOM_TRIGGER, HIGH);
+		//vTaskDelayUntil(&lastTickValue, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
+		//digitalWrite(SONAR_CALF_BOTTOM_TRIGGER, LOW);
+		//sonarReading = pulseIn(SONAR_CALF_BOTTOM_ECHO, HIGH);
+		////Serial.println("Calf bottom Sonar Reading:");
+		//sr->name = 's';
+		//convertToDecimalString((char *)sr->data, sonarReading);
+	//}
 	
 	//sonarReading = (analogRead(sonarADCChannel) * DISTANCE_SCALE_FACTOR) / 10;
 	xSemaphoreGive(SEMA_SONAR);
@@ -442,7 +459,7 @@ void sonarLeft(void *p)
 	while(1)
 	{
 		
-		readAndEnqueueSonarReading(SONAR_LEFT_ID,&srLeft,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
+		readAndEnqueueSonarReading(SONAR_LEFT_ID,&srLeft);
 		vTaskDelay(SONAR_READING_PERIOD_MS);
 		//delayMicroseconds(10000000);
 	}
@@ -453,7 +470,7 @@ void sonarRight(void *p)
 	while(1)
 	{
 		
-		readAndEnqueueSonarReading(SONAR_RIGHT_ID,&srRight,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
+		readAndEnqueueSonarReading(SONAR_RIGHT_ID,&srRight);//SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
 		vTaskDelay(SONAR_READING_PERIOD_MS);
 		//delayMicroseconds(1000000);
 	}
@@ -464,7 +481,7 @@ void sonarChest(void *p)
 	while(1)
 	{
 		
-		readAndEnqueueSonarReading(SONAR_CHEST_ID,&srChest,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
+		//readAndEnqueueSonarReading(SONAR_CHEST_ID,&srChest,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
 		vTaskDelay(SONAR_READING_PERIOD_MS);
 		//delayMicroseconds(1000000);
 	}
@@ -475,33 +492,33 @@ void sonarGlove(void *p)
 	while(1)
 	{
 		
-		readAndEnqueueSonarReading(SONAR_GLOVE_ID,&srChest,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
+		readAndEnqueueSonarReading(SONAR_GLOVE_ID,&srGlove);
 		vTaskDelay(SONAR_READING_PERIOD_MS);
 		//delayMicroseconds(1000000);
 	}
 }
 
-void sonarCalfTop(void *p)
-{
-	while(1)
-	{
-		
-		readAndEnqueueSonarReading(SONAR_CALF_TOP,&srCalfTop,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
-		vTaskDelay(SONAR_READING_PERIOD_MS);
-		//delayMicroseconds(1000000);
-	}
-}
-
-void sonarCalfBtm(void *p)
-{
-	while(1)
-	{
-		
-		readAndEnqueueSonarReading(SONAR_CALF_BOTTOM,&srCalfBtm,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
-		vTaskDelay(SONAR_READING_PERIOD_MS);
-		//delayMicroseconds(1000000);
-	}
-}
+//void sonarCalfTop(void *p)
+//{
+	//while(1)
+	//{
+		//
+		//readAndEnqueueSonarReading(SONAR_CALF_TOP,&srCalfTop,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
+		//vTaskDelay(SONAR_READING_PERIOD_MS);
+		////delayMicroseconds(1000000);
+	//}
+//}
+//
+//void sonarCalfBtm(void *p)
+//{
+	//while(1)
+	//{
+		//
+		//readAndEnqueueSonarReading(SONAR_CALF_BOTTOM,&srCalfBtm,SONAR_LEFT_ADC_CHANNEL, SONAR_LEFT_ENABLE_PIN);
+		//vTaskDelay(SONAR_READING_PERIOD_MS);
+		////delayMicroseconds(1000000);
+	//}
+//}
 
 #define STACK_DEPTH 64
 
@@ -629,7 +646,7 @@ int main(void)
 {	
 	setup();
 	xTaskCreate(sonarGlove, "snglv", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
-	//xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
+	xTaskCreate(sonarLeft, "snlft", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	xTaskCreate(sonarRight, "snrgt", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	//xTaskCreate(sonarChest, "sncst", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
 	//xTaskCreate(sonarCalfTop, "sncalftop", STACK_SIZE, NULL, TASK_PRIORITY + 1, NULL);
@@ -638,7 +655,7 @@ int main(void)
 	//xTaskCreate(barometerReading, "brmt", STACK_SIZE, NULL, TASK_PRIORITY +1, NULL);
 	//xTaskCreate(gyroReading, "gyro", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 	//xTaskCreate(compassReading, "cprd", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
-	xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY+1, NULL);
+	//xTaskCreate(serialDespatcher, "srdsp", STACK_SIZE, NULL, TASK_PRIORITY+1, NULL);
 	//xTaskCreate(calibrate, "cali", STACK_SIZE, NULL, TASK_PRIORITY, NULL);
 
 	vTaskStartScheduler();
