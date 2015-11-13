@@ -103,7 +103,7 @@ char itemBuffer2[DEFAULT_BUFFER_SIZE] = {0};
 char itemBuffer3[18] = {0};
 SensorReading srLeft;
 SensorReading srRight;
-SensorReading srChest;
+//SensorReading srChest;
 SensorReading srGlove;
 SensorReading compassReadingData;
 SensorReading accReadingData;
@@ -114,7 +114,7 @@ LSM303 compass;
 LSM303::vector<int16_t> running_min = {32767, 32767, 32767}, running_max = {-32768, -32768, -32768};
 LSM303::vector<int16_t> a_running_min = {32767, 32767, 32767}, a_running_max = {-32768, -32768, -32768};
 
-char report[10] = {0};
+char report[16] = {0};
 char compassReport[16];
 
 //barometer
@@ -139,6 +139,7 @@ unsigned long distance2;
 int gloveCount = 0;
 int rightCount = 0;
 int leftCount = 0;
+int sonarTrigDelay = 0;
 
 void setup(void)
 {
@@ -209,15 +210,15 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr)
 		digitalWrite(SONAR_LEFT_TRIGGER, HIGH);
 		vTaskDelayUntil(&lastTickValue2, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
 		digitalWrite(SONAR_LEFT_TRIGGER, LOW);
-		sonarReading2 = pulseIn(SONAR_LEFT_ECHO, HIGH,10000);
+		sonarReading2 = pulseIn(SONAR_LEFT_ECHO, HIGH,5000);
 		
 		//Serial.println("Left Sonar Reading:");
 		sr->name = 's';
 		//convertToDecimalString((char *)sr->data, sonarReading2);
 		distance2 = sonarReading2/58; // converts sonar reading to centimeters
 		//
-		Serial.println("LEFT:");
-		Serial.println(distance2);
+		//Serial.println("LEFT:");
+		//Serial.println(distance2);
 		
 		if(distance2 <=70 && distance2 > 0)
 		{
@@ -231,10 +232,12 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr)
 		if(leftCount > 25)
 		{
 			digitalWrite(MOTOR_PIN_LEFT, HIGH);
+			//sonarTrigDelay++;
 		}
 		else
 		{
 			digitalWrite(MOTOR_PIN_LEFT, LOW);
+			
 		}
 		xTaskResumeAll ();
 	}
@@ -245,7 +248,7 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr)
 		digitalWrite(SONAR_RIGHT_TRIGGER, HIGH);
 		vTaskDelayUntil(&lastTickValue, SONAR_WAIT_PERIOD_MS_TICK_INCREMENT);
 		digitalWrite(SONAR_RIGHT_TRIGGER, LOW);
-		sonarReading1 = pulseIn(SONAR_RIGHT_ECHO, HIGH,10000);
+		sonarReading1 = pulseIn(SONAR_RIGHT_ECHO, HIGH,5000);
 		
 		//Serial.println("Right Sonar Reading:");
 		//sr->name = 's';
@@ -265,10 +268,12 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr)
 		if(rightCount > 25)
 		{
 			digitalWrite(MOTOR_PIN_RIGHT, HIGH);
+			//sonarTrigDelay++;
 		}
 		else
 		{
 			digitalWrite(MOTOR_PIN_RIGHT, LOW);
+			
 		}
 		xTaskResumeAll();
 	}
@@ -293,10 +298,11 @@ void readAndEnqueueSonarReading(uint8_t sonarId,SensorReading * sr)
 		
 		if(gloveCount > 15){
 			digitalWrite(MOTOR_PIN_GLOVE, HIGH);
-			
+			//sonarTrigDelay++;
 		}else
 		{
 			digitalWrite(MOTOR_PIN_GLOVE, LOW);
+			
 		}
 		
 		xTaskResumeAll ();
@@ -377,15 +383,18 @@ void accReading(void *p) {
 		compass.read();
 		accReadingData.name = 'a';
 		int heading = compass.heading();
-		snprintf(report, sizeof(report),"%d,%d,",
-		heading,compass.a.x);
+		snprintf(report, sizeof(report),"%d,%d,%d,%d",
+		heading,compass.a.x,compass.a.y,compass.a.z);
 		//snprintf(report, sizeof(report),"%d,%d,%d,%d,",
 		//300,1,0,0);
 		memcpy(accReadingData.data, report, 10);
 		xQueueReset(acclerationQueue);
 		xQueueOverwrite(acclerationQueue,&accReadingData);
 		//Serial.println(report);
-		//vTaskDelay(10);
+		//if(sonarTrigDelay>9){
+			//sonarTrigDelay = 0;
+			//vTaskDelay(1);
+		//}
 	}
 }
 
@@ -427,7 +436,7 @@ void compassReading(void *p) {
 		compass.m.x);
 		memcpy(compassReadingData.data, compassReport, 16);
 		xQueueOverwrite(compassQueue,&compassReadingData);	
-		//Serial.println(compassReport);
+		Serial.println(compassReport);
 		//delay(10);
 		vTaskDelay(10);
 	}
